@@ -17,10 +17,7 @@ app = Flask(__name__)
 # --- CABECERAS PARA PERMITIR IFRAME DESDE FIREBASE ---
 @app.after_request
 def add_header(response):
-    # Permite que la página se cargue dentro de un iframe desde cualquier origen
-    # (Puedes restringirlo a 'ALLOW-FROM https://souldakr-5ed8a.web.app' si quieres más seguridad)
     response.headers['X-Frame-Options'] = 'ALLOWALL'
-    # También añadimos Content-Security-Policy para permitir iframes
     response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://souldakr-5ed8a.web.app"
     return response
 
@@ -36,7 +33,9 @@ checking_state = {
     'current_smtp': '',
     'start_time': 0,
     'current_batch': 0,
-    'total_batches': 0
+    'total_batches': 0,
+    'ip_address': '',
+    'location': ''
 }
 
 # --- FUNCIONES DE UTILIDAD ---
@@ -46,6 +45,23 @@ def log_message(message, type='info'):
     checking_state['logs'].append({'time': timestamp, 'message': message, 'type': type})
     if len(checking_state['logs']) > 500:
         checking_state['logs'] = checking_state['logs'][-500:]
+
+def get_client_info():
+    """Obtener IP y ubicación del cliente"""
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if ip and ',' in ip:
+        ip = ip.split(',')[0].strip()
+    
+    location = "Desconocido"
+    try:
+        res = requests.get(f'http://ip-api.com/json/{ip}?fields=status,country,city', timeout=3)
+        data = res.json()
+        if data['status'] == 'success':
+            location = f"{data['city']}, {data['country']}"
+    except:
+        pass
+    
+    return ip, location
 
 def parse_smtp_line(line):
     line = line.strip()
@@ -101,7 +117,6 @@ def test_smtp(host, port, user, password, config):
     for method, test_port in methods:
         server = None
         try:
-            # Timeout corto para no colgar el hilo
             if method == 'SSL':
                 server = smtplib.SMTP_SSL(host=host, port=test_port, timeout=5, context=context)
             else:
@@ -195,6 +210,9 @@ def worker(queue, config):
 
 @app.route('/')
 def index():
+    ip, location = get_client_info()
+    checking_state['ip_address'] = ip
+    checking_state['location'] = location
     return render_template('index.html')
 
 @app.route('/start-check', methods=['POST'])
@@ -226,7 +244,6 @@ def start_check():
     lines = [l.strip() for l in smtp_list.split('\n') if l.strip()]
     checking_state['total_count'] = len(lines)
     
-    # Lógica de Lotes para no cortar el proceso
     BATCH_SIZE = 500
     total_batches = (len(lines) + BATCH_SIZE - 1) // BATCH_SIZE
     
@@ -255,7 +272,7 @@ def start_check():
                 threads.append(t)
             for t in threads: t.join()
             
-            time.sleep(1) # Pequeña pausa entre lotes
+            time.sleep(1)
         
         checking_state['is_checking'] = False
         log_message("✅ CHECKEO COMPLETADO", 'success')
