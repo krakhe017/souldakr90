@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal SMTP Checker PRO - Web</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 UNIVERSAL SMTP CHECKER PRO</h1>
+        <p class="subtitle">by @Souldakr | Versión Web</p>
+
+        <!-- Panel de control -->
+        <div class="panel">
+            <label>Lista de SMTPs (una por línea):</label>
+            <textarea id="smtp-list" placeholder="host:puerto:usuario:contraseña&#10;ejemplo: smtp.gmail.com:587:user@gmail.com:pass123"></textarea>
+            
+            <div class="controls">
+                <label>Hilos: <input type="number" id="threads" value="10" min="1" max="50"></label>
+                <button id="start-btn" onclick="startCheck()">🚀 INICIAR CHECKEO</button>
+                <button id="stop-btn" onclick="stopCheck()" disabled>⛔ DETENER</button>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats">
+            <div class="stat"><span>Total:</span> <strong id="stat-total">0</strong></div>
+            <div class="stat"><span>Válidos:</span> <strong id="stat-valid" class="success">0</strong></div>
+            <div class="stat"><span>Inválidos:</span> <strong id="stat-invalid" class="error">0</strong></div>
+            <div class="stat"><span>Progreso:</span> <strong id="stat-progress">0/0</strong></div>
+        </div>
+
+        <!-- Consola de Log -->
+        <div class="log-container">
+            <h3>📝 Consola</h3>
+            <div id="log-console" class="log-console"></div>
+        </div>
+
+        <!-- Resultados Válidos -->
+        <div class="results">
+            <h3>✅ SMTPs Válidos</h3>
+            <textarea id="valid-results" readonly placeholder="Aquí aparecerán los SMTPs válidos..."></textarea>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
