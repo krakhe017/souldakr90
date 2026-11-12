@@ -14,6 +14,16 @@ from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 
+# --- CABECERAS PARA PERMITIR IFRAME DESDE FIREBASE ---
+@app.after_request
+def add_header(response):
+    # Permite que la página se cargue dentro de un iframe desde cualquier origen
+    # (Puedes restringirlo a 'ALLOW-FROM https://souldakr-5ed8a.web.app' si quieres más seguridad)
+    response.headers['X-Frame-Options'] = 'ALLOWALL'
+    # También añadimos Content-Security-Policy para permitir iframes
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://souldakr-5ed8a.web.app"
+    return response
+
 # --- ESTADO GLOBAL ---
 checking_state = {
     'is_checking': False,
@@ -216,8 +226,8 @@ def start_check():
     lines = [l.strip() for l in smtp_list.split('\n') if l.strip()]
     checking_state['total_count'] = len(lines)
     
-    # Lógica de Lotes
-    BATCH_SIZE = 500  # Procesar de a 500 SMTPs para no saturar
+    # Lógica de Lotes para no cortar el proceso
+    BATCH_SIZE = 500
     total_batches = (len(lines) + BATCH_SIZE - 1) // BATCH_SIZE
     
     def run_batches():
