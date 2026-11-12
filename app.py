@@ -24,8 +24,12 @@ checking_state = {
     'logs': [],
     'valid_smtps': [],
     'current_smtp': '',
-    'start_time': 0
+    'start_time': 0,
+    'current_batch': 0,
+    'total_batches': 0
 }
+
+# --- FUNCIONES DE UTILIDAD ---
 
 def log_message(message, type='info'):
     timestamp = time.strftime("%H:%M:%S")
@@ -87,16 +91,16 @@ def test_smtp(host, port, user, password, config):
     for method, test_port in methods:
         server = None
         try:
+            # Timeout corto para no colgar el hilo
             if method == 'SSL':
-                server = smtplib.SMTP_SSL(host=host, port=test_port, timeout=10, context=context)
+                server = smtplib.SMTP_SSL(host=host, port=test_port, timeout=5, context=context)
             else:
-                server = smtplib.SMTP(host=host, port=test_port, timeout=10)
+                server = smtplib.SMTP(host=host, port=test_port, timeout=5)
                 server.starttls(context=context)
             
             server.login(user, password)
             checking_state['current_smtp'] = f"{host}:{port} | {user[:20]}..."
             
-            # ENVIAR EMAILS SI ESTÁ CONFIGURADO
             if config.get('send_test_email') and config.get('recipients'):
                 recipients = [r.strip() for r in config['recipients'].split('\n') if r.strip() and '@' in r]
                 subject = config.get('email_subject', 'Test')
@@ -121,7 +125,7 @@ def test_smtp(host, port, user, password, config):
                         
                         server.sendmail(user, recipient, msg.as_string())
                         log_message(f"  📤 Enviado a {recipient}", 'success')
-                        time.sleep(0.3)
+                        time.sleep(0.2)
                     except Exception as e:
                         log_message(f"  ⚠️ Error enviando a {recipient}: {str(e)[:50]}", 'warning')
             
@@ -177,6 +181,8 @@ def worker(queue, config):
             log_message(f"[ERROR Worker] {str(e)[:50]}", 'error')
             queue.task_done()
 
+# --- RUTAS ---
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -210,23 +216,41 @@ def start_check():
     lines = [l.strip() for l in smtp_list.split('\n') if l.strip()]
     checking_state['total_count'] = len(lines)
     
-    queue = Queue()
-    for i, line in enumerate(lines, 1):
-        queue.put((i, line))
+    # Lógica de Lotes
+    BATCH_SIZE = 500  # Procesar de a 500 SMTPs para no saturar
+    total_batches = (len(lines) + BATCH_SIZE - 1) // BATCH_SIZE
     
-    def run():
-        threads = []
-        num = min(threads_count, queue.qsize())
-        for _ in range(num):
-            t = threading.Thread(target=worker, args=(queue, config))
-            t.daemon = True
-            t.start()
-            threads.append(t)
-        for t in threads: t.join()
+    def run_batches():
+        for batch_num in range(total_batches):
+            if not checking_state['is_checking']: break
+            
+            start_idx = batch_num * BATCH_SIZE
+            end_idx = min(start_idx + BATCH_SIZE, len(lines))
+            batch_lines = lines[start_idx:end_idx]
+            
+            checking_state['current_batch'] = batch_num + 1
+            checking_state['total_batches'] = total_batches
+            log_message(f"📦 Procesando lote {batch_num + 1}/{total_batches} ({len(batch_lines)} SMTPs)...", 'info')
+            
+            queue = Queue()
+            for i, line in enumerate(batch_lines, 1):
+                queue.put((start_idx + i, line))
+            
+            threads = []
+            num = min(threads_count, queue.qsize())
+            for _ in range(num):
+                t = threading.Thread(target=worker, args=(queue, config))
+                t.daemon = True
+                t.start()
+                threads.append(t)
+            for t in threads: t.join()
+            
+            time.sleep(1) # Pequeña pausa entre lotes
+        
         checking_state['is_checking'] = False
         log_message("✅ CHECKEO COMPLETADO", 'success')
     
-    threading.Thread(target=run, daemon=True).start()
+    threading.Thread(target=run_batches, daemon=True).start()
     return jsonify({'message': 'Iniciado', 'total': len(lines)})
 
 @app.route('/status')
