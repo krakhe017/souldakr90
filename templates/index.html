@@ -3,76 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal SMTP Checker PRO - Web</title>
+    <title>Universal SMTP Checker PRO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
         <h1>🔥 UNIVERSAL SMTP CHECKER PRO</h1>
-        <p class="subtitle">by @Souldakr | Versión Web Completa</p>
+        <p class="subtitle">by @Souldakr | Versión Web</p>
 
-        <!-- Panel de Configuración -->
         <div class="panel">
-            <h3>⚙️ Configuración Avanzada</h3>
+            <h3>⚙️ Configuración</h3>
             
-            <div class="form-row">
-                <label>Lista de SMTPs (una por línea):</label>
-                <textarea id="smtp-list" placeholder="host:puerto:usuario:contraseña&#10;ejemplo: smtp.gmail.com:587:user@gmail.com:pass123"></textarea>
-            </div>
+            <label>Lista de SMTPs (una por línea):</label>
+            <textarea id="smtp-list" rows="5" placeholder="host:puerto:usuario:contraseña"></textarea>
 
-            <div class="form-row">
-                <label><input type="checkbox" id="send_test_email"> 📤 Enviar email de prueba a destinatarios</label>
-            </div>
+            <label style="margin-top: 10px; display: block;">
+                <input type="checkbox" id="send_test_email"> 📤 Enviar email de prueba
+            </label>
 
-            <div id="email-config" style="display: none; background: #1a1a1a; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+            <!-- CAMPOS DE EMAIL (Ocultos por defecto) -->
+            <div id="email-config" style="display: none; background: #1a1a1a; padding: 15px; border-radius: 5px; margin: 10px 0;">
                 <label>Destinatarios (uno por línea):</label>
                 <textarea id="recipients" rows="3" placeholder="cliente1@ejemplo.com&#10;cliente2@ejemplo.com"></textarea>
                 
-                <label>Asunto del Email:</label>
-                <input type="text" id="email_subject" value="Actualización del Sistema de Seguridad 2026 - BAC Credomatic">
+                <label>Asunto:</label>
+                <input type="text" id="email_subject" value="Actualización de Seguridad">
                 
                 <label>Nombre del Remitente:</label>
-                <input type="text" id="sender_name" value="BAC Credomatic International Bank">
+                <input type="text" id="sender_name" value="BAC Credomatic">
                 
-                <label>Cuerpo del Email (HTML o texto):</label>
-                <textarea id="email_body" rows="5">Estimado cliente,</textarea>
+                <label>Cuerpo del Mensaje:</label>
+                <textarea id="email_body" rows="4">Estimado cliente,</textarea>
 
-                <label><input type="checkbox" id="enable_personalization" checked> 🎯 Habilitar Personalización ({email}, {nombre}, {fecha})</label>
+                <label style="margin-top: 10px; display: block;">
+                    <input type="checkbox" id="enable_personalization" checked> 🎯 Personalizar ({email}, {nombre}, {fecha})
+                </label>
             </div>
 
-            <div class="form-row">
-                <label>Telegram Bot Token:</label>
-                <input type="text" id="telegram_token" placeholder="Opcional: 123456:ABC-DEF...">
-                <label>Telegram Chat ID:</label>
-                <input type="text" id="telegram_chat_id" placeholder="Opcional: 123456789">
-            </div>
+            <label>Telegram Bot Token (opcional):</label>
+            <input type="text" id="telegram_token" placeholder="123456:ABC-DEF...">
+            <label>Telegram Chat ID (opcional):</label>
+            <input type="text" id="telegram_chat_id" placeholder="123456789">
 
             <div class="controls">
                 <label>Hilos: <input type="number" id="threads" value="10" min="1" max="50"></label>
-                <button id="start-btn" onclick="startCheck()">🚀 INICIAR CHECKEO</button>
+                <button id="start-btn" onclick="startCheck()">🚀 INICIAR</button>
                 <button id="stop-btn" onclick="stopCheck()" disabled>⛔ DETENER</button>
             </div>
         </div>
 
-        <!-- Estadísticas -->
         <div class="stats">
             <div class="stat"><span>Total:</span> <strong id="stat-total">0</strong></div>
             <div class="stat"><span>Válidos:</span> <strong id="stat-valid" class="success">0</strong></div>
             <div class="stat"><span>Inválidos:</span> <strong id="stat-invalid" class="error">0</strong></div>
             <div class="stat"><span>Progreso:</span> <strong id="stat-progress">0/0</strong></div>
-            <div class="stat"><span>SMTP Actual:</span> <strong id="stat-current" style="font-size: 12px;">-</strong></div>
+            <div class="stat"><span>Actual:</span> <strong id="stat-current" style="font-size: 12px;">-</strong></div>
         </div>
 
-        <!-- Consola de Log -->
         <div class="log-container">
             <h3>📝 Consola</h3>
             <div id="log-console" class="log-console"></div>
         </div>
 
-        <!-- Resultados Válidos -->
         <div class="results">
-            <h3>✅ SMTPs Válidos</h3>
-            <textarea id="valid-results" readonly placeholder="Aquí aparecerán los SMTPs válidos..."></textarea>
+            <h3>✅ Válidos</h3>
+            <textarea id="valid-results" readonly placeholder="Resultados..."></textarea>
         </div>
     </div>
 
