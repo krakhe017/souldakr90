@@ -1,68 +1,58 @@
-// --- BLOQUEO DE INSPECCIÓN ---
+// Bloqueo de inspección
 (function() {
-    document.addEventListener('contextmenu', function(e) { e.preventDefault(); return false; });
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
-        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) { e.preventDefault(); return false; }
-        if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) { e.preventDefault(); return false; }
-        if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) { e.preventDefault(); return false; }
-        if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) { e.preventDefault(); return false; }
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+        if (e.key === 'F12' || e.keyCode === 123 || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase())) || (e.ctrlKey && e.key === 'U')) {
+            e.preventDefault();
+        }
     });
-    document.addEventListener('selectstart', function(e) { e.preventDefault(); return false; });
 })();
-// --- FIN BLOQUEO ---
 
-let statusInterval = null;
-
-// Mostrar/ocultar configuración de email
+// Mostrar campos de email
 document.getElementById('send_test_email').addEventListener('change', function() {
     document.getElementById('email-config').style.display = this.checked ? 'block' : 'none';
 });
 
-function logToConsole(message, type = 'info') {
-    const consoleDiv = document.getElementById('log-console');
-    const entry = document.createElement('div');
-    entry.className = `log-entry ${type}`;
-    entry.textContent = message;
-    consoleDiv.appendChild(entry);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+let statusInterval = null;
+
+function logMsg(msg, type = 'info') {
+    const c = document.getElementById('log-console');
+    const d = document.createElement('div');
+    d.className = `log-entry ${type}`;
+    d.textContent = msg;
+    c.appendChild(d);
+    c.scrollTop = c.scrollHeight;
 }
 
-function updateStats(data) {
-    document.getElementById('stat-total').textContent = data.total_count;
-    document.getElementById('stat-valid').textContent = data.valid_count;
-    document.getElementById('stat-invalid').textContent = data.invalid_count;
-    document.getElementById('stat-progress').textContent = `${data.checked_count}/${data.total_count}`;
-    document.getElementById('stat-current').textContent = data.current_smtp || '-';
+function updateStats(d) {
+    document.getElementById('stat-total').textContent = d.total_count;
+    document.getElementById('stat-valid').textContent = d.valid_count;
+    document.getElementById('stat-invalid').textContent = d.invalid_count;
+    document.getElementById('stat-progress').textContent = `${d.checked_count}/${d.total_count}`;
+    document.getElementById('stat-current').textContent = d.current_smtp || '-';
 }
 
 function updateLogs(logs) {
-    const consoleDiv = document.getElementById('log-console');
-    // Solo actualizamos si hay nuevos logs para no parpadear
-    if (logs.length > consoleDiv.children.length) {
-        consoleDiv.innerHTML = '';
-        logs.forEach(log => {
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${log.type}`;
-            entry.textContent = `[${log.time}] ${log.message}`;
-            consoleDiv.appendChild(entry);
+    const c = document.getElementById('log-console');
+    if (logs.length > c.children.length) {
+        c.innerHTML = '';
+        logs.forEach(l => {
+            const d = document.createElement('div');
+            d.className = `log-entry ${l.type}`;
+            d.textContent = `[${l.time}] ${l.message}`;
+            c.appendChild(d);
         });
-        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        c.scrollTop = c.scrollHeight;
     }
 }
 
 async function startCheck() {
-    const smtpList = document.getElementById('smtp-list').value;
-    const threads = document.getElementById('threads').value;
-
-    if (!smtpList.trim()) {
-        alert('Por favor, ingresa al menos un SMTP.');
-        return;
-    }
+    const list = document.getElementById('smtp-list').value;
+    if (!list.trim()) return alert('Ingresa SMTPs');
 
     const config = {
-        smtp_list: smtpList,
-        threads: threads,
+        smtp_list: list,
+        threads: document.getElementById('threads').value,
         send_test_email: document.getElementById('send_test_email').checked,
         recipients: document.getElementById('recipients').value,
         email_subject: document.getElementById('email_subject').value,
@@ -79,24 +69,22 @@ async function startCheck() {
     document.getElementById('valid-results').value = '';
 
     try {
-        const response = await fetch('/start-check', {
+        const res = await fetch('/start-check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
         });
-
-        const data = await response.json();
-        if (response.ok) {
-            logToConsole(`🚀 Checkeo iniciado con ${data.total} SMTPs`, 'success');
+        const data = await res.json();
+        if (res.ok) {
+            logMsg(`🚀 Iniciado con ${data.total} SMTPs`, 'success');
             statusInterval = setInterval(fetchStatus, 1000);
         } else {
             alert(data.error);
             document.getElementById('start-btn').disabled = false;
             document.getElementById('stop-btn').disabled = true;
         }
-    } catch (error) {
-        console.error(error);
-        alert('Error al iniciar el checkeo.');
+    } catch (e) {
+        alert('Error al conectar con el servidor');
         document.getElementById('start-btn').disabled = false;
         document.getElementById('stop-btn').disabled = true;
     }
@@ -104,34 +92,25 @@ async function startCheck() {
 
 async function fetchStatus() {
     try {
-        const response = await fetch('/status');
-        const data = await response.json();
-
+        const res = await fetch('/status');
+        const data = await res.json();
         updateStats(data);
         updateLogs(data.logs);
 
         if (!data.is_checking && data.checked_count > 0) {
             clearInterval(statusInterval);
-            statusInterval = null;
             document.getElementById('start-btn').disabled = false;
             document.getElementById('stop-btn').disabled = true;
             document.getElementById('valid-results').value = data.valid_smtps.join('\n');
-            logToConsole('✅ Checkeo finalizado.', 'success');
+            logMsg('✅ Finalizado', 'success');
         }
-    } catch (error) {
-        console.error('Error al obtener estado:', error);
-    }
+    } catch (e) { console.error(e); }
 }
 
 async function stopCheck() {
-    try {
-        await fetch('/stop-check', { method: 'POST' });
-        logToConsole('⛔ Checkeo detenido por el usuario.', 'warning');
-        clearInterval(statusInterval);
-        statusInterval = null;
-        document.getElementById('start-btn').disabled = false;
-        document.getElementById('stop-btn').disabled = true;
-    } catch (error) {
-        console.error(error);
-    }
+    await fetch('/stop-check', { method: 'POST' });
+    logMsg('⛔ Detenido por el usuario', 'warning');
+    clearInterval(statusInterval);
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = true;
 }
