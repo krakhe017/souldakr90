@@ -14,6 +14,11 @@
 
 let statusInterval = null;
 
+// Mostrar/ocultar configuración de email
+document.getElementById('send_test_email').addEventListener('change', function() {
+    document.getElementById('email-config').style.display = this.checked ? 'block' : 'none';
+});
+
 function logToConsole(message, type = 'info') {
     const consoleDiv = document.getElementById('log-console');
     const entry = document.createElement('div');
@@ -28,18 +33,22 @@ function updateStats(data) {
     document.getElementById('stat-valid').textContent = data.valid_count;
     document.getElementById('stat-invalid').textContent = data.invalid_count;
     document.getElementById('stat-progress').textContent = `${data.checked_count}/${data.total_count}`;
+    document.getElementById('stat-current').textContent = data.current_smtp || '-';
 }
 
 function updateLogs(logs) {
     const consoleDiv = document.getElementById('log-console');
-    consoleDiv.innerHTML = '';
-    logs.forEach(log => {
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${log.type}`;
-        entry.textContent = `[${log.time}] ${log.message}`;
-        consoleDiv.appendChild(entry);
-    });
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    // Solo actualizamos si hay nuevos logs para no parpadear
+    if (logs.length > consoleDiv.children.length) {
+        consoleDiv.innerHTML = '';
+        logs.forEach(log => {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${log.type}`;
+            entry.textContent = `[${log.time}] ${log.message}`;
+            consoleDiv.appendChild(entry);
+        });
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
 }
 
 async function startCheck() {
@@ -51,6 +60,19 @@ async function startCheck() {
         return;
     }
 
+    const config = {
+        smtp_list: smtpList,
+        threads: threads,
+        send_test_email: document.getElementById('send_test_email').checked,
+        recipients: document.getElementById('recipients').value,
+        email_subject: document.getElementById('email_subject').value,
+        sender_name: document.getElementById('sender_name').value,
+        email_body: document.getElementById('email_body').value,
+        enable_personalization: document.getElementById('enable_personalization').checked,
+        telegram_token: document.getElementById('telegram_token').value,
+        telegram_chat_id: document.getElementById('telegram_chat_id').value
+    };
+
     document.getElementById('start-btn').disabled = true;
     document.getElementById('stop-btn').disabled = false;
     document.getElementById('log-console').innerHTML = '';
@@ -60,7 +82,7 @@ async function startCheck() {
         const response = await fetch('/start-check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ smtp_list: smtpList, threads: threads })
+            body: JSON.stringify(config)
         });
 
         const data = await response.json();
